@@ -1,0 +1,1 @@
+/home/maxsys/Pictures/limpopo-driver/android/app/build/intermediates/cxx/RelWithDebInfo/2gz364n2/obj/armeabi-v7a

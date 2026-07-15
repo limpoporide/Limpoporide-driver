@@ -1,0 +1,1374 @@
+// // import React, { useState, useEffect, useRef } from 'react';
+// // import {
+// //   View,
+// //   Text,
+// //   TouchableOpacity,
+// //   StyleSheet,
+// //   Alert,
+// //   ActivityIndicator,
+// //   PermissionsAndroid,
+// //   Platform,
+// //   StatusBar,
+// //   Linking,
+// //   Animated,
+// //   PanResponder,
+// // } from 'react-native';
+// // import MapView, { Marker } from 'react-native-maps';
+// // import MapViewDirections from 'react-native-maps-directions';
+// // import Geolocation from 'react-native-geolocation-service';
+// // import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+// // import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+// // import { ridesAPI } from '../../services/api';
+// // import { locationTracker } from '../../services/locationTracker';
+// // import toastService from '../../Utility/toast';
+// // import Config from 'react-native-config';
+
+// // const GOOGLE_MAPS_API_KEY = Config.GOOGLE_MAPS_API_KEY ?? '';
+
+// // interface LocationState {
+// //   latitude: number;
+// //   longitude: number;
+// //   heading?: number;
+// //   speed?: number;
+// // }
+
+// // interface RideInProgressData {
+// //   ride: number;
+// //   pickup_address: string;
+// //   pickup_latitude: string;
+// //   pickup_longitude: string;
+// //   drop_address: string;
+// //   drop_latitude: string;
+// //   drop_longitude: string;
+// //   total_amount: number;
+// //   current_latitude: string;
+// //   current_longitude: string;
+// //   user_name: string;
+// //   mobile_number: string;
+// //   distance_km: number;
+// //   status: string;
+// // }
+
+// // const C = { bg: '#0B0B0B', orange: '#E59332', textPrimary: '#FFFFFF', border: '#2D2D2D' };
+
+// // const PEEK_HEIGHT = 44;   // drag handle strip that stays visible
+// // const TAB_BAR_HEIGHT = 60; // typical Android bottom tab bar
+
+// // export default function RideInProgress({ navigation, route }: any): React.ReactElement {
+// //   const { ride } = route.params;
+// //   console.log("Ride in Progress --->",ride);
+  
+// //   const insets = useSafeAreaInsets();
+// //   const bottomInsetRef = useRef(0);
+// //   bottomInsetRef.current = insets.bottom;
+
+// //   const [location, setLocation] = useState<LocationState | null>(null);
+// //   const [loading, setLoading] = useState<boolean>(true);
+// //   const [completing, setCompleting] = useState<boolean>(false);
+// //   const [rideData, setRideData] = useState<RideInProgressData | null>(null);
+// //   const [rideDataLoading, setRideDataLoading] = useState<boolean>(true);
+// //   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string }>({
+// //     distance: '—',
+// //     duration: '—',
+// //   });
+// //   const [isFollowing, setIsFollowing] = useState<boolean>(true);
+// //   const [showSuccessBanner, setShowSuccessBanner] = useState<boolean>(true);
+
+// //   const mapViewRef = useRef<MapView>(null);
+// //   const isFollowingRef = useRef<boolean>(true);
+// //   const lastHeading = useRef<number>(0);
+
+// //   const cardTranslateY = useRef(new Animated.Value(0)).current;
+// //   const cardHeightRef = useRef(0);
+// //   const cardIsVisible = useRef(true);
+
+// //   const getHideTranslate = () =>
+// //     cardHeightRef.current - PEEK_HEIGHT - TAB_BAR_HEIGHT - bottomInsetRef.current;
+
+// //   const panResponder = useRef(
+// //     PanResponder.create({
+// //       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 8,
+// //       onPanResponderMove: (_, gs) => {
+// //         if (cardIsVisible.current && gs.dy > 0) {
+// //           cardTranslateY.setValue(gs.dy);
+// //         } else if (!cardIsVisible.current && gs.dy < 0) {
+// //           cardTranslateY.setValue(getHideTranslate() + gs.dy);
+// //         }
+// //       },
+// //       onPanResponderRelease: (_, gs) => {
+// //         if (cardIsVisible.current && gs.dy > 60) {
+// //           cardIsVisible.current = false;
+// //           Animated.timing(cardTranslateY, {
+// //             toValue: getHideTranslate(),
+// //             duration: 280,
+// //             useNativeDriver: true,
+// //           }).start();
+// //         } else if (!cardIsVisible.current && gs.dy < -60) {
+// //           cardIsVisible.current = true;
+// //           Animated.timing(cardTranslateY, {
+// //             toValue: 0,
+// //             duration: 280,
+// //             useNativeDriver: true,
+// //           }).start();
+// //         } else {
+// //           Animated.timing(cardTranslateY, {
+// //             toValue: cardIsVisible.current ? 0 : getHideTranslate(),
+// //             duration: 200,
+// //             useNativeDriver: true,
+// //           }).start();
+// //         }
+// //       },
+// //     })
+// //   ).current;
+
+// //   useEffect(() => {
+// //     requestLocationPermission();
+// //     fetchRideData();
+// //     const timer = setTimeout(() => setShowSuccessBanner(false), 3000);
+// //     return () => clearTimeout(timer);
+// //   }, []);
+
+// //   // Keep ref in sync so the tracker listener always reads the latest value
+// //   useEffect(() => {
+// //     isFollowingRef.current = isFollowing;
+// //   }, [isFollowing]);
+
+// //   // Subscribe to the global tracker for camera animation
+// //   useEffect(() => {
+// //     return locationTracker.addListener((pos) => {
+// //       const newHeading = pos.heading || lastHeading.current;
+// //       lastHeading.current = newHeading;
+// //       setLocation({ latitude: pos.latitude, longitude: pos.longitude, heading: newHeading, speed: pos.speed });
+
+// //       if (isFollowingRef.current) {
+// //         mapViewRef.current?.animateCamera(
+// //           {
+// //             center: { latitude: pos.latitude, longitude: pos.longitude },
+// //             heading: newHeading,
+// //             pitch: 45,
+// //             zoom: 17,
+// //             altitude: 500,
+// //           },
+// //           { duration: 1000 }
+// //         );
+// //       }
+// //     });
+// //   }, []);
+
+// //   const fetchRideData = async () => {
+// //     setRideDataLoading(true);
+// //     try {
+// //       const response = await ridesAPI.getOTPRideScreen({ ride_id: ride?.ride_id });
+// //       console.log('RideInProgress getOTPRideScreen:', response);
+// //       if (response?.data) setRideData(response.data);
+// //     } catch (error) {
+// //       console.log('fetchRideData error:', error);
+// //       Alert.alert('Error', 'Failed to load ride details');
+// //     } finally {
+// //       setRideDataLoading(false);
+// //     }
+// //   };
+
+// //   const requestLocationPermission = async (): Promise<void> => {
+// //     try {
+// //       if (Platform.OS === 'android') {
+// //         const alreadyGranted = await PermissionsAndroid.check(
+// //           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+// //         );
+// //         if (!alreadyGranted) {
+// //           const granted = await PermissionsAndroid.request(
+// //             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+// //             {
+// //               title: 'Location Permission',
+// //               message: 'App needs access to your location',
+// //               buttonNeutral: 'Ask Me Later',
+// //               buttonNegative: 'Cancel',
+// //               buttonPositive: 'OK',
+// //             }
+// //           );
+// //           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+// //             Alert.alert('Permission Denied', 'Location permission is required');
+// //             setLoading(false);
+// //             return;
+// //           }
+// //         }
+// //       }
+
+// //       Geolocation.getCurrentPosition(
+// //         (position) => {
+// //           const { latitude, longitude, heading } = position.coords;
+// //           setLocation({ latitude, longitude, heading: heading ?? 0 });
+// //           setLoading(false);
+// //           mapViewRef.current?.animateCamera({
+// //             center: { latitude, longitude },
+// //             heading: heading ?? 0,
+// //             pitch: 45,
+// //             zoom: 17,
+// //             altitude: 500,
+// //           });
+// //         },
+// //         (error) => {
+// //           Alert.alert('Error', error.message);
+// //           setLoading(false);
+// //         },
+// //         { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+// //       );
+// //     } catch {
+// //       Alert.alert('Error', 'Location permission denied');
+// //       setLoading(false);
+// //     }
+// //   };
+
+// //   const handleRecenter = () => {
+// //     setIsFollowing(true);
+// //     if (!location) return;
+// //     mapViewRef.current?.animateCamera(
+// //       {
+// //         center: { latitude: location.latitude, longitude: location.longitude },
+// //         heading: location.heading ?? 0,
+// //         pitch: 45,
+// //         zoom: 17,
+// //         altitude: 500,
+// //       },
+// //       { duration: 800 }
+// //     );
+// //   };
+
+// //   const fitMapToRoute = () => {
+// //     setIsFollowing(false);
+// //     if (!location || !rideData) return;
+// //     mapViewRef.current?.animateCamera({ pitch: 0, heading: 0, zoom: 12 }, { duration: 500 });
+// //     setTimeout(() => {
+// //       mapViewRef.current?.fitToCoordinates(
+// //         [
+// //           location,
+// //           {
+// //             latitude: parseFloat(rideData.drop_latitude),
+// //             longitude: parseFloat(rideData.drop_longitude),
+// //           },
+// //         ],
+// //         { edgePadding: { top: 80, right: 60, bottom: 420, left: 60 }, animated: true }
+// //       );
+// //     }, 600);
+// //   };
+
+// //   const handleNavigate = () => {
+// //     if (!rideData) return;
+// //     const lat = parseFloat(rideData.drop_latitude);
+// //     const lng = parseFloat(rideData.drop_longitude);
+// //     const androidUrl = `google.navigation:q=${lat},${lng}&mode=d`;
+// //     const iosGoogleUrl = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+// //     const browserUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+// //     if (Platform.OS === 'android') {
+// //       Linking.canOpenURL(androidUrl)
+// //         .then((supported) => Linking.openURL(supported ? androidUrl : browserUrl))
+// //         .catch(() => Linking.openURL(browserUrl));
+// //     } else {
+// //       Linking.canOpenURL(iosGoogleUrl)
+// //         .then((supported) =>
+// //           Linking.openURL(supported ? iosGoogleUrl : `maps://?daddr=${lat},${lng}&dirflg=d`)
+// //         )
+// //         .catch(() => Linking.openURL(browserUrl));
+// //     }
+// //   };
+
+// //   const handleCall = () => {
+// //     if (!rideData?.mobile_number) return;
+// //     Linking.openURL(`tel:${rideData.mobile_number}`);
+// //   };
+
+// //   const handleChat = () => {
+// //     navigation.navigate('ChatScreen', { rideId: ride?.ride_id });
+// //   };
+
+// //   const handleCancel = () => {
+// //     Alert.alert('Cancel Ride', 'Are you sure you want to cancel?', [
+// //       { text: 'No', style: 'cancel' },
+// //       {
+// //         text: 'Yes',
+// //         style: 'destructive',
+// //         onPress: () => navigation.navigate('ReasonForCancel', { rideId: ride?.ride_id }),
+// //       },
+// //     ]);
+// //   };
+
+// //   const handleCompleteRide = async () => {
+// //     Alert.alert('Complete Ride', 'Are you sure you want to complete this ride?', [
+// //       { text: 'Cancel', style: 'cancel' },
+// //       {
+// //         text: 'Complete',
+// //         style: 'default',
+// //         onPress: async () => {
+// //           setCompleting(true);
+// //           try {
+// //             const response = await ridesAPI.updateRideStatus({
+// //               ride_id: ride?.ride_id,
+// //               status: 'completed',
+// //             });
+// //             console.log('completeRide response:', response);
+// //             toastService?.success(response?.message);
+// //             navigation.reset({
+// //               index: 1,
+// //               routes: [
+// //                 { name: 'MainTabs' },
+// //                 { name: 'BookingDetails', params: { ride: { id: ride?.ride_id } } },
+// //               ],
+// //             });
+// //           } catch (error) {
+// //             console.log('completeRide error:', error);
+// //             Alert.alert('Error', 'Failed to complete ride. Please try again.');
+// //           } finally {
+// //             setCompleting(false);
+// //           }
+// //         },
+// //       },
+// //     ]);
+// //   };
+
+// //   if (loading) {
+// //     return (
+// //       <View style={styles.loadingContainer}>
+// //         <ActivityIndicator size="large" color="#FF8C00" />
+// //         <Text style={styles.loadingText}>Getting your location...</Text>
+// //       </View>
+// //     );
+// //   }
+
+// //   const dropCoords = rideData
+// //     ? {
+// //         latitude: parseFloat(rideData.drop_latitude),
+// //         longitude: parseFloat(rideData.drop_longitude),
+// //       }
+// //     : null;
+
+// //   const pickupCoords = rideData
+// //     ? {
+// //         latitude: parseFloat(rideData.pickup_latitude),
+// //         longitude: parseFloat(rideData.pickup_longitude),
+// //       }
+// //     : null;
+
+// //   return (
+// //     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+// //       <StatusBar backgroundColor="#0B0B0B" barStyle="light-content" />
+
+// //       {/* Header — unchanged */}
+// //       {/* Header */}
+// //            <View style={styles.header}>
+// //              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+// //                <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
+// //              </TouchableOpacity>
+// //              <Text style={styles.headerTitle}>Ride Start</Text>
+// //              {/* Overview button */}
+// //              <TouchableOpacity style={styles.iconBtn} onPress={fitMapToRoute}>
+// //                <MaterialCommunityIcons name="map-outline" size={20} color="#fff" />
+// //              </TouchableOpacity>
+// //            </View>
+     
+
+// //       {/* Success Banner — below header */}
+// //       {showSuccessBanner && (
+// //         <View style={styles.successBannerTop}>
+// //           <MaterialCommunityIcons name="check-circle" size={18} color="#22c55e" />
+// //           <Text style={styles.successBannerTopText}>Ride Started Successfully!</Text>
+// //         </View>
+// //       )}
+
+// //       <View style={styles.container}>
+// //         {/* Map */}
+// //         {location && (
+// //           <MapView
+// //             ref={mapViewRef}
+// //             style={styles.map}
+// //             userInterfaceStyle="dark"
+// //             rotateEnabled
+// //             pitchEnabled
+// //             onPanDrag={() => setIsFollowing(false)}
+// //             initialCamera={{
+// //               center: { latitude: location.latitude, longitude: location.longitude },
+// //               heading: location.heading ?? 0,
+// //               pitch: 45,
+// //               zoom: 17,
+// //               altitude: 500,
+// //             }}
+// //           >
+// //             {/* Driver marker */}
+// //             <Marker
+// //               coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+// //               anchor={{ x: 0.5, y: 0.5 }}
+// //               flat
+// //               rotation={location.heading ?? 0}
+// //             >
+// //               <View style={styles.driverMarker}>
+// //                 <MaterialCommunityIcons name="navigation" size={22} color="#fff" />
+// //               </View>
+// //             </Marker>
+
+// //             {/* Pickup marker */}
+// //             {pickupCoords && (
+// //               <Marker coordinate={pickupCoords} anchor={{ x: 0.5, y: 1 }}>
+// //                 <View style={styles.markerWrap}>
+// //                   <View style={[styles.markerBubble, { backgroundColor: '#FF8C00' }]}>
+// //                     <Text style={styles.markerBubbleText}>Pickup</Text>
+// //                   </View>
+// //                   <MaterialCommunityIcons name="map-marker" size={32} color="#FF8C00" />
+// //                 </View>
+// //               </Marker>
+// //             )}
+
+// //             {/* Drop marker */}
+// //             {dropCoords && (
+// //               <Marker coordinate={dropCoords} anchor={{ x: 0.5, y: 1 }}>
+// //                 <View style={styles.markerWrap}>
+// //                   <View style={[styles.markerBubble, { backgroundColor: '#ef4444' }]}>
+// //                     <Text style={styles.markerBubbleText}>Drop-off</Text>
+// //                   </View>
+// //                   <MaterialCommunityIcons name="map-marker" size={32} color="#ef4444" />
+// //                 </View>
+// //               </Marker>
+// //             )}
+
+// //             {/* Route: driver → drop */}
+// //             {dropCoords && (
+// //               <MapViewDirections
+// //                 origin={{ latitude: location.latitude, longitude: location.longitude }}
+// //                 destination={dropCoords}
+// //                 apikey={GOOGLE_MAPS_API_KEY}
+// //                 strokeWidth={5}
+// //                 strokeColor="#4A90E2"
+// //                 lineDashPattern={[0]}
+// //                 optimizeWaypoints
+// //                 onReady={(result) => {
+// //                   setRouteInfo({
+// //                     distance:
+// //                       result.distance < 1
+// //                         ? `${Math.round(result.distance * 1000)} m`
+// //                         : `${result.distance.toFixed(1)} km`,
+// //                     duration:
+// //                       result.duration < 1
+// //                         ? `${Math.round(result.duration * 60)} sec`
+// //                         : `${Math.round(result.duration)} min`,
+// //                   });
+// //                 }}
+// //                 onError={(e) => console.log('Directions error:', e)}
+// //               />
+// //             )}
+// //           </MapView>
+// //         )}
+
+// //         {/* Re-center FAB */}
+// //         {!isFollowing && (
+// //           <TouchableOpacity style={styles.recenterFab} onPress={handleRecenter}>
+// //             <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#fff" />
+// //           </TouchableOpacity>
+// //         )}
+
+// //         {/* Speed badge */}
+// //         {location?.speed !== undefined && (
+// //           <View style={styles.speedBadge}>
+// //             <Text style={styles.speedValue}>
+// //               {Math.round((location.speed ?? 0) * 3.6)}
+// //             </Text>
+// //             <Text style={styles.speedUnit}>km/h</Text>
+// //           </View>
+// //         )}
+
+// //         {/* ── Bottom Card ── */}
+// //         <Animated.View
+// //           style={[styles.card, { bottom: insets.bottom, transform: [{ translateY: cardTranslateY }] }]}
+// //           onLayout={(e) => { cardHeightRef.current = e.nativeEvent.layout.height; }}
+// //           {...panResponder.panHandlers}
+// //         >
+// //           {/* Drag handle */}
+// //           <View style={styles.dragHandle} />
+
+// //           {rideDataLoading ? (
+// //             <ActivityIndicator size="small" color="#E59332" style={{ marginVertical: 20 }} />
+// //           ) : (
+// //             <>
+// //               {/* Booking ID */}
+// //               <Text style={styles.bookingIdText}>
+// //                 Booking ID: #{rideData?.ride ?? ride?.ride_id}
+// //               </Text>
+
+// //               {/* Navigate to Drop + Cancel */}
+// //               <View style={styles.topButtonRow}>
+// //                 <TouchableOpacity
+// //                   style={[styles.topBtn, styles.navigateBtn]}
+// //                   onPress={handleNavigate}
+// //                 >
+// //                   <MaterialCommunityIcons name="navigation" size={15} color="#fff" />
+// //                   <Text style={styles.topBtnText}>Navigate to Drop</Text>
+// //                 </TouchableOpacity>
+// //                 <TouchableOpacity
+// //                   style={[styles.topBtn, styles.cancelTopBtn]}
+// //                   onPress={handleCancel}
+// //                 >
+// //                   <Text style={styles.topBtnText}>Cancel</Text>
+// //                 </TouchableOpacity>
+// //               </View>
+
+// //               <View style={styles.divider} />
+
+// //               {/* Customer row */}
+// //               <View style={styles.customerRow}>
+// //                 <View style={styles.customerAvatar}>
+// //                   <MaterialCommunityIcons name="account" size={22} color="#E59332" />
+// //                 </View>
+// //                 <View style={{ flex: 1 }}>
+// //                   <Text style={styles.customerName}>{rideData?.user_name ?? '—'}</Text>
+// //                   <Text style={styles.customerPhone}>{rideData?.mobile_number ?? '—'}</Text>
+// //                 </View>
+// //                 <TouchableOpacity style={styles.circleBtn} onPress={handleChat}>
+// //                   <MaterialCommunityIcons name="chat" size={17} color="#fff" />
+// //                 </TouchableOpacity>
+// //                 <TouchableOpacity
+// //                   style={[styles.circleBtn, { marginLeft: 8 }]}
+// //                   onPress={handleCall}
+// //                 >
+// //                   <MaterialCommunityIcons name="phone" size={17} color="#fff" />
+// //                 </TouchableOpacity>
+// //               </View>
+
+// //               <View style={styles.divider} />
+
+// //               {/* Pickup */}
+// //               <View style={styles.addressRow}>
+// //                 <View style={styles.dotPickup} />
+// //                 <View style={{ flex: 1 }}>
+// //                   <Text style={styles.addressLabel}>PICKUP LOCATION</Text>
+// //                   <Text style={styles.addressText}>{rideData?.pickup_address ?? '—'}</Text>
+// //                 </View>
+// //               </View>
+
+// //               <View style={styles.connectorLine} />
+
+// //               {/* Drop */}
+// //               <View style={styles.addressRow}>
+// //                 <View style={styles.dotDrop} />
+// //                 <View style={{ flex: 1 }}>
+// //                   <Text style={[styles.addressLabel, { color: '#ef4444' }]}>DROP LOCATION</Text>
+// //                   <Text style={styles.addressText}>{rideData?.drop_address ?? '—'}</Text>
+// //                 </View>
+// //               </View>
+
+// //               <View style={styles.divider} />
+
+// //               {/* Distance + Fare */}
+// //               <View style={styles.metaRow}>
+// //                 <View style={styles.metaItem}>
+// //                   <Text style={styles.metaLabel}>Distance</Text>
+// //                   <Text style={styles.metaValue}>
+// //                     {rideData?.distance_km?.toFixed(2) ?? '—'} km
+// //                   </Text>
+// //                 </View>
+// //                 <View style={styles.metaDivider} />
+// //                 <View style={[styles.metaItem, { alignItems: 'flex-end' }]}>
+// //                   <Text style={styles.metaLabel}>Fare</Text>
+// //                   <Text style={styles.fareValue}>
+// //                     ₦
+// //                     {(rideData?.total_amount ?? 0).toLocaleString('en', {
+// //                       minimumFractionDigits: 2,
+// //                     })}
+// //                   </Text>
+// //                 </View>
+// //               </View>
+
+// //               {/* Complete Ride button */}
+// //               <TouchableOpacity
+// //                 style={[styles.completeRideBtn, completing && styles.disabledBtn]}
+// //                 onPress={handleCompleteRide}
+// //                 disabled={completing}
+// //               >
+// //                 {completing ? (
+// //                   <ActivityIndicator size="small" color="#fff" />
+// //                 ) : (
+// //                   <>
+// //                     <MaterialCommunityIcons name="flag-checkered" size={18} color="#fff" />
+// //                     <Text style={styles.completeRideBtnText}>Complete Ride</Text>
+// //                   </>
+// //                 )}
+// //               </TouchableOpacity>
+// //             </>
+// //           )}
+// //         </Animated.View>
+// //       </View>
+// //     </SafeAreaView>
+// //   );
+// // }
+
+// // const styles = StyleSheet.create({
+// //   safeArea: { flex: 1, backgroundColor: '#0B0B0B' },
+
+// //   // Header
+// //   header: {
+// //     flexDirection: 'row',
+// //     alignItems: 'center',
+// //     justifyContent: 'space-between',
+// //     paddingHorizontal: 16,
+// //     paddingVertical: 12,
+// //     borderBottomWidth: 1,
+// //     borderBottomColor: '#2C2C2C',
+// //     backgroundColor: C.bg,
+// //     zIndex: 10,
+// //   },
+// //   iconBtn: {
+// //     width: 36, height: 36, borderRadius: 10,
+// //     backgroundColor: '#0E0E0E', alignItems: 'center',
+// //     justifyContent: 'center', borderWidth: 1, borderColor: '#2C2C2C',
+// //   },
+// //   headerTitle: { color: '#FFFFFF', fontWeight: '700', fontSize: 16, letterSpacing: 0.3 },
+// //   rideIdBadge: {
+// //     backgroundColor: '#1E1E1E', borderRadius: 6,
+// //     paddingHorizontal: 8, paddingVertical: 3,
+// //     borderWidth: 1, borderColor: '#2C2C2C',
+// //   },
+// //   rideIdText: { fontSize: 11, color: C.orange, fontWeight: '700' },
+// //   container: { flex: 1 },
+// //   loadingContainer: {
+// //     flex: 1, justifyContent: 'center',
+// //     alignItems: 'center', backgroundColor: '#0B0B0B',
+// //   },
+// //   loadingText: { marginTop: 12, fontSize: 16, color: '#888' },
+// //   map: { flex: 1 },
+
+// //   // Markers
+// //   driverMarker: {
+// //     width: 42, height: 42, borderRadius: 21,
+// //     backgroundColor: '#E59332', justifyContent: 'center',
+// //     alignItems: 'center', borderWidth: 3, borderColor: '#fff', elevation: 5,
+// //   },
+// //   markerWrap: { alignItems: 'center' },
+// //   markerBubble: {
+// //     borderRadius: 6, paddingHorizontal: 8,
+// //     paddingVertical: 3, marginBottom: 2,
+// //   },
+// //   markerBubbleText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+// //   // FABs
+// //   recenterFab: {
+// //     position: 'absolute', right: 16, bottom: 16,
+// //     width: 48, height: 48, borderRadius: 24,
+// //     backgroundColor: '#1C1C1E', justifyContent: 'center',
+// //     alignItems: 'center', borderWidth: 1, borderColor: '#333', elevation: 6,
+// //   },
+// //   speedBadge: {
+// //     position: 'absolute', left: 16, bottom: 16,
+// //     backgroundColor: '#1C1C1E', borderRadius: 12,
+// //     paddingHorizontal: 12, paddingVertical: 8,
+// //     alignItems: 'center', borderWidth: 1, borderColor: '#333', elevation: 6,
+// //   },
+// //   speedValue: { fontSize: 18, fontWeight: '800', color: '#fff' },
+// //   speedUnit: { fontSize: 10, color: '#888', fontWeight: '500' },
+
+// //   // Card
+// //   card: {
+// //     position: 'absolute', bottom: 0, left: 0, right: 0,
+// //     backgroundColor: '#121212',
+// //     borderTopLeftRadius: 20, borderTopRightRadius: 20,
+// //     paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8,
+// //     borderTopWidth: 1, borderColor: '#2C2C2C', elevation: 8,
+// //   },
+// //   dragHandle: {
+// //     width: 40, height: 4, borderRadius: 2,
+// //     backgroundColor: '#444', alignSelf: 'center', marginBottom: 12,
+// //   },
+// //   bookingIdText: {
+// //     fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 8,
+// //   },
+// //   successBannerTop: {
+// //     flexDirection: 'row', alignItems: 'center',
+// //     justifyContent: 'center', gap: 8,
+// //     backgroundColor: '#0D2B1A',
+// //     paddingVertical: 12,
+// //     borderBottomWidth: 1, borderBottomColor: '#14532d',
+// //   },
+// //   successBannerTopText: { fontSize: 14, fontWeight: '700', color: '#22c55e' },
+
+// //   topButtonRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+// //   topBtn: {
+// //     flex: 1, paddingVertical: 10, borderRadius: 8,
+// //     alignItems: 'center', justifyContent: 'center',
+// //     flexDirection: 'row', gap: 5,
+// //   },
+// //   navigateBtn: { backgroundColor: '#1F87FE' },
+// //   cancelTopBtn: {
+// //     backgroundColor: '#2C2C2C',
+// //     borderWidth: 1, borderColor: '#3C3C3C',
+// //   },
+// //   topBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+// //   divider: { height: 1, backgroundColor: '#2C2C2C', marginBottom: 12 },
+
+// //   customerRow: {
+// //     flexDirection: 'row', alignItems: 'center',
+// //     gap: 10, marginBottom: 12,
+// //   },
+// //   customerAvatar: {
+// //     width: 40, height: 40, borderRadius: 20,
+// //     backgroundColor: '#1E1E1E', justifyContent: 'center',
+// //     alignItems: 'center', borderWidth: 1, borderColor: '#333',
+// //   },
+// //   customerName: { fontSize: 14, fontWeight: '700', color: '#fff' },
+// //   customerPhone: { fontSize: 11, color: '#888', marginTop: 2 },
+// //   circleBtn: {
+// //     width: 38, height: 38, borderRadius: 19,
+// //     backgroundColor: '#E59332',
+// //     justifyContent: 'center', alignItems: 'center',
+// //   },
+
+// //   addressRow: {
+// //     flexDirection: 'row', alignItems: 'flex-start',
+// //     gap: 10, marginBottom: 4,
+// //   },
+// //   dotPickup: {
+// //     width: 10, height: 10, borderRadius: 5,
+// //     backgroundColor: '#FF8C00', marginTop: 13,
+// //   },
+// //   dotDrop: {
+// //     width: 10, height: 10, borderRadius: 5,
+// //     backgroundColor: '#ef4444', marginTop: 13,
+// //   },
+// //   connectorLine: {
+// //     width: 1, height: 10, backgroundColor: '#444',
+// //     marginLeft: 4, marginBottom: 4,
+// //   },
+// //   addressLabel: {
+// //     fontSize: 10, fontWeight: '700',
+// //     color: '#E59332', letterSpacing: 0.8, marginBottom: 2,
+// //   },
+// //   addressText: { fontSize: 12, color: '#ccc', lineHeight: 18 },
+
+// //   metaRow: {
+// //     flexDirection: 'row', justifyContent: 'space-between',
+// //     alignItems: 'center', marginBottom: 14,
+// //   },
+// //   metaItem: { flex: 1 },
+// //   metaDivider: { width: 1, height: 28, backgroundColor: '#2C2C2C' },
+// //   metaLabel: { fontSize: 11, color: '#888' },
+// //   metaValue: { fontSize: 14, fontWeight: '700', color: '#fff' },
+// //   fareValue: { fontSize: 16, fontWeight: '800', color: '#E59332' },
+
+// //   completeRideBtn: {
+// //     backgroundColor: '#22c55e', borderRadius: 12,
+// //     paddingVertical: 14, alignItems: 'center',
+// //     justifyContent: 'center', flexDirection: 'row', gap: 8,
+// //   },
+// //   completeRideBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+// //   disabledBtn: { opacity: 0.6 },
+// // });
+
+
+
+
+
+
+// import React, { useState, useEffect, useRef } from 'react';
+// import {
+//   View,
+//   Text,
+//   TouchableOpacity,
+//   StyleSheet,
+//   Alert,
+//   ActivityIndicator,
+//   PermissionsAndroid,
+//   Platform,
+//   StatusBar,
+//   Linking,
+//   Animated,
+//   PanResponder,
+// } from 'react-native';
+// import MapView, { Marker } from 'react-native-maps';
+// import MapViewDirections from 'react-native-maps-directions';
+// import Geolocation from 'react-native-geolocation-service';
+// import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+// import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+// import { ridesAPI } from '../../services/api';
+// import { locationTracker } from '../../services/locationTracker';
+// import toastService from '../../Utility/toast';
+// import Config from 'react-native-config';
+
+// const GOOGLE_MAPS_API_KEY = Config.GOOGLE_MAPS_API_KEY ?? '';
+
+// const C = { bg: '#0B0B0B', orange: '#E59332', textPrimary: '#FFFFFF', border: '#2D2D2D' };
+
+// const PEEK_HEIGHT    = 44;
+// const TAB_BAR_HEIGHT = 60;
+
+// export default function RideInProgress({ navigation, route }) {
+//   const { ride } = route.params;
+//   console.log('Ride in Progress --->', ride);
+
+//   const insets          = useSafeAreaInsets();
+//   const bottomInsetRef  = useRef(0);
+//   bottomInsetRef.current = insets.bottom;
+
+//   const [location,         setLocation]         = useState(null);
+//   const [loading,          setLoading]          = useState(true);
+//   const [completing,       setCompleting]       = useState(false);
+//   const [routeInfo,        setRouteInfo]        = useState({ distance: '—', duration: '—' });
+//   const [isFollowing,      setIsFollowing]      = useState(true);
+//   const [showSuccessBanner,setShowSuccessBanner]= useState(true);
+
+//   const mapViewRef      = useRef(null);
+//   const isFollowingRef  = useRef(true);
+//   const lastHeading     = useRef(0);
+//   const cardTranslateY  = useRef(new Animated.Value(0)).current;
+//   const cardHeightRef   = useRef(0);
+//   const cardIsVisible   = useRef(true);
+
+//   // ── Coords directly from ride data ───────────────────────────────────────
+//   const pickupCoords = ride?.picup_lat && ride?.picup_long
+//     ? { latitude: parseFloat(ride.picup_lat), longitude: parseFloat(ride.picup_long) }
+//     : null;
+
+//   const dropCoords = ride?.drop_lat && ride?.drop_long
+//     ? { latitude: parseFloat(ride.drop_lat), longitude: parseFloat(ride.drop_long) }
+//     : null;
+
+//   // ── Drag card ─────────────────────────────────────────────────────────────
+//   const getHideTranslate = () =>
+//     cardHeightRef.current - PEEK_HEIGHT - TAB_BAR_HEIGHT - bottomInsetRef.current;
+
+//   const panResponder = useRef(
+//     PanResponder.create({
+//       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 8,
+//       onPanResponderMove: (_, gs) => {
+//         if (cardIsVisible.current && gs.dy > 0) {
+//           cardTranslateY.setValue(gs.dy);
+//         } else if (!cardIsVisible.current && gs.dy < 0) {
+//           cardTranslateY.setValue(getHideTranslate() + gs.dy);
+//         }
+//       },
+//       onPanResponderRelease: (_, gs) => {
+//         if (cardIsVisible.current && gs.dy > 60) {
+//           cardIsVisible.current = false;
+//           Animated.timing(cardTranslateY, {
+//             toValue: getHideTranslate(), duration: 280, useNativeDriver: true,
+//           }).start();
+//         } else if (!cardIsVisible.current && gs.dy < -60) {
+//           cardIsVisible.current = true;
+//           Animated.timing(cardTranslateY, {
+//             toValue: 0, duration: 280, useNativeDriver: true,
+//           }).start();
+//         } else {
+//           Animated.timing(cardTranslateY, {
+//             toValue: cardIsVisible.current ? 0 : getHideTranslate(),
+//             duration: 200, useNativeDriver: true,
+//           }).start();
+//         }
+//       },
+//     })
+//   ).current;
+
+//   // ── Lifecycle ─────────────────────────────────────────────────────────────
+//   useEffect(() => {
+//     requestLocationPermission();
+//     const timer = setTimeout(() => setShowSuccessBanner(false), 3000);
+//     return () => clearTimeout(timer);
+//   }, []);
+
+//   useEffect(() => {
+//     isFollowingRef.current = isFollowing;
+//   }, [isFollowing]);
+
+//   useEffect(() => {
+//     return locationTracker.addListener((pos) => {
+//       const newHeading = pos.heading || lastHeading.current;
+//       lastHeading.current = newHeading;
+//       setLocation({
+//         latitude: pos.latitude,
+//         longitude: pos.longitude,
+//         heading: newHeading,
+//         speed: pos.speed,
+//       });
+//       if (isFollowingRef.current) {
+//         mapViewRef.current?.animateCamera(
+//           {
+//             center: { latitude: pos.latitude, longitude: pos.longitude },
+//             heading: newHeading, pitch: 45, zoom: 17, altitude: 500,
+//           },
+//           { duration: 1000 }
+//         );
+//       }
+//     });
+//   }, []);
+
+//   // ── Location permission ───────────────────────────────────────────────────
+//   const requestLocationPermission = async () => {
+//     try {
+//       if (Platform.OS === 'android') {
+//         const alreadyGranted = await PermissionsAndroid.check(
+//           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+//         );
+//         if (!alreadyGranted) {
+//           const granted = await PermissionsAndroid.request(
+//             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+//             {
+//               title: 'Location Permission',
+//               message: 'App needs access to your location',
+//               buttonNeutral: 'Ask Me Later',
+//               buttonNegative: 'Cancel',
+//               buttonPositive: 'OK',
+//             }
+//           );
+//           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+//             Alert.alert('Permission Denied', 'Location permission is required');
+//             setLoading(false);
+//             return;
+//           }
+//         }
+//       }
+//       Geolocation.getCurrentPosition(
+//         (position) => {
+//           const { latitude, longitude, heading } = position.coords;
+//           setLocation({ latitude, longitude, heading: heading ?? 0 });
+//           setLoading(false);
+//           mapViewRef.current?.animateCamera({
+//             center: { latitude, longitude },
+//             heading: heading ?? 0, pitch: 45, zoom: 17, altitude: 500,
+//           });
+//         },
+//         (error) => { Alert.alert('Error', error.message); setLoading(false); },
+//         { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+//       );
+//     } catch {
+//       Alert.alert('Error', 'Location permission denied');
+//       setLoading(false);
+//     }
+//   };
+
+//   // ── Camera ────────────────────────────────────────────────────────────────
+//   const handleRecenter = () => {
+//     setIsFollowing(true);
+//     if (!location) return;
+//     mapViewRef.current?.animateCamera(
+//       {
+//         center: { latitude: location.latitude, longitude: location.longitude },
+//         heading: location.heading ?? 0, pitch: 45, zoom: 17, altitude: 500,
+//       },
+//       { duration: 800 }
+//     );
+//   };
+
+//   const fitMapToRoute = () => {
+//     setIsFollowing(false);
+//     if (!location || !dropCoords) return;
+//     mapViewRef.current?.animateCamera({ pitch: 0, heading: 0, zoom: 12 }, { duration: 500 });
+//     setTimeout(() => {
+//       mapViewRef.current?.fitToCoordinates(
+//         [location, dropCoords],
+//         { edgePadding: { top: 80, right: 60, bottom: 420, left: 60 }, animated: true }
+//       );
+//     }, 600);
+//   };
+
+//   // ── Navigate to drop ──────────────────────────────────────────────────────
+//   const handleNavigate = () => {
+//     const lat = parseFloat(ride?.drop_lat);   // ✅ ride.drop_lat
+//     const lng = parseFloat(ride?.drop_long);  // ✅ ride.drop_long
+//     if (!lat || !lng) return;
+
+//     const androidUrl   = `google.navigation:q=${lat},${lng}&mode=d`;
+//     const iosGoogleUrl = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+//     const browserUrl   = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+//     if (Platform.OS === 'android') {
+//       Linking.canOpenURL(androidUrl)
+//         .then((supported) => Linking.openURL(supported ? androidUrl : browserUrl))
+//         .catch(() => Linking.openURL(browserUrl));
+//     } else {
+//       Linking.canOpenURL(iosGoogleUrl)
+//         .then((supported) =>
+//           Linking.openURL(supported ? iosGoogleUrl : `maps://?daddr=${lat},${lng}&dirflg=d`)
+//         )
+//         .catch(() => Linking.openURL(browserUrl));
+//     }
+//   };
+
+//   // ── Call / Chat ───────────────────────────────────────────────────────────
+//   const handleCall = () => {
+//     if (!ride?.mobile_no) return;              // ✅ ride.mobile_no
+//     Linking.openURL(`tel:${ride.mobile_no}`);
+//   };
+
+//   const handleChat = () => {
+//     navigation.navigate('ChatScreen', { data: ride }); // ✅ ride.id
+//   };
+
+//   // ── Cancel ────────────────────────────────────────────────────────────────
+//   const handleCancel = () => {
+//     Alert.alert('Cancel Ride', 'Are you sure you want to cancel?', [
+//       { text: 'No', style: 'cancel' },
+//       {
+//         text: 'Yes',
+//         style: 'destructive',
+//         onPress: () => navigation.navigate('ReasonForCancel', { rideId: ride?.booking_id }), // ✅ ride.id
+//       },
+//     ]);
+//   };
+
+//   // ── Complete ride ─────────────────────────────────────────────────────────
+//   const handleCompleteRide = async () => {
+//     Alert.alert('Complete Ride', 'Are you sure you want to complete this ride?', [
+//       { text: 'Cancel', style: 'cancel' },
+//       {
+//         text: 'Complete',
+//         style: 'default',
+//         onPress: async () => {
+//           setCompleting(true);
+//           try {
+//             const response = await ridesAPI.updateRideStatus({
+//               booking_id: ride?.booking_id,       // ✅ ride.id
+//             });
+//             console.log('completeRide response:', response);
+//             toastService?.success(response?.message);
+//             navigation.reset({
+//               index: 1,
+//               routes: [
+//                 { name: 'MainTabs' },
+//                 { name: 'BookingDetails', params: { ride } }, // ✅ pass whole ride
+//               ],
+//             });
+//           } catch (error) {
+//             console.log('completeRide error:', error);
+//             Alert.alert('Error', 'Failed to complete ride. Please try again.');
+//           } finally {
+//             setCompleting(false);
+//           }
+//         },
+//       },
+//     ]);
+//   };
+
+//   // ── Loading ───────────────────────────────────────────────────────────────
+//   if (loading) {
+//     return (
+//       <View style={styles.loadingContainer}>
+//         <ActivityIndicator size="large" color="#FF8C00" />
+//         <Text style={styles.loadingText}>Getting your location...</Text>
+//       </View>
+//     );
+//   }
+
+//   // ── Render ────────────────────────────────────────────────────────────────
+//   return (
+//     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+//       <StatusBar backgroundColor="#0B0B0B" barStyle="light-content" />
+
+//       {/* Header */}
+//       <View style={styles.header}>
+//         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+//           <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
+//         </TouchableOpacity>
+//         <Text style={styles.headerTitle}>Ride Start</Text>
+//         <TouchableOpacity style={styles.iconBtn} onPress={fitMapToRoute}>
+//           <MaterialCommunityIcons name="map-outline" size={20} color="#fff" />
+//         </TouchableOpacity>
+//       </View>
+
+//       {/* Success Banner */}
+//       {showSuccessBanner && (
+//         <View style={styles.successBannerTop}>
+//           <MaterialCommunityIcons name="check-circle" size={18} color="#22c55e" />
+//           <Text style={styles.successBannerTopText}>Ride Started Successfully!</Text>
+//         </View>
+//       )}
+
+//       <View style={styles.container}>
+//         {/* Map */}
+//         {location && (
+//           <MapView
+//             ref={mapViewRef}
+//             style={styles.map}
+//             userInterfaceStyle="dark"
+//             rotateEnabled
+//             pitchEnabled
+//             onPanDrag={() => setIsFollowing(false)}
+//             initialCamera={{
+//               center: { latitude: location.latitude, longitude: location.longitude },
+//               heading: location.heading ?? 0,
+//               pitch: 45, zoom: 17, altitude: 500,
+//             }}
+//           >
+//             {/* Driver marker */}
+//             <Marker
+//               coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+//               anchor={{ x: 0.5, y: 0.5 }}
+//               flat
+//               rotation={location.heading ?? 0}
+//             >
+//               <View style={styles.driverMarker}>
+//                 <MaterialCommunityIcons name="navigation" size={22} color="#fff" />
+//               </View>
+//             </Marker>
+
+//             {/* Pickup marker */}
+//             {pickupCoords && (
+//               <Marker coordinate={pickupCoords} anchor={{ x: 0.5, y: 1 }}>
+//                 <View style={styles.markerWrap}>
+//                   <View style={[styles.markerBubble, { backgroundColor: '#FF8C00' }]}>
+//                     <Text style={styles.markerBubbleText}>Pickup</Text>
+//                   </View>
+//                   <MaterialCommunityIcons name="map-marker" size={32} color="#FF8C00" />
+//                 </View>
+//               </Marker>
+//             )}
+
+//             {/* Drop marker */}
+//             {dropCoords && (
+//               <Marker coordinate={dropCoords} anchor={{ x: 0.5, y: 1 }}>
+//                 <View style={styles.markerWrap}>
+//                   <View style={[styles.markerBubble, { backgroundColor: '#ef4444' }]}>
+//                     <Text style={styles.markerBubbleText}>Drop-off</Text>
+//                   </View>
+//                   <MaterialCommunityIcons name="map-marker" size={32} color="#ef4444" />
+//                 </View>
+//               </Marker>
+//             )}
+
+//             {/* Route: driver → drop */}
+//             {dropCoords && (
+//               <MapViewDirections
+//                 origin={{ latitude: location.latitude, longitude: location.longitude }}
+//                 destination={dropCoords}
+//                 apikey={GOOGLE_MAPS_API_KEY}
+//                 strokeWidth={5}
+//                 strokeColor="#4A90E2"
+//                 lineDashPattern={[0]}
+//                 optimizeWaypoints
+//                 onReady={(result) => {
+//                   setRouteInfo({
+//                     distance: result.distance < 1
+//                       ? `${Math.round(result.distance * 1000)} m`
+//                       : `${result.distance.toFixed(1)} km`,
+//                     duration: result.duration < 1
+//                       ? `${Math.round(result.duration * 60)} sec`
+//                       : `${Math.round(result.duration)} min`,
+//                   });
+//                 }}
+//                 onError={(e) => console.log('Directions error:', e)}
+//               />
+//             )}
+//           </MapView>
+//         )}
+
+//         {/* Re-center FAB */}
+//         {!isFollowing && (
+//           <TouchableOpacity style={styles.recenterFab} onPress={handleRecenter}>
+//             <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#fff" />
+//           </TouchableOpacity>
+//         )}
+
+//         {/* Speed badge */}
+//         {location?.speed !== undefined && (
+//           <View style={styles.speedBadge}>
+//             <Text style={styles.speedValue}>
+//               {Math.round((location.speed ?? 0) * 3.6)}
+//             </Text>
+//             <Text style={styles.speedUnit}>km/h</Text>
+//           </View>
+//         )}
+
+//         {/* ── Bottom Card ── */}
+//         <Animated.View
+//           style={[styles.card, { bottom: insets.bottom, transform: [{ translateY: cardTranslateY }] }]}
+//           onLayout={(e) => { cardHeightRef.current = e.nativeEvent.layout.height; }}
+//           {...panResponder.panHandlers}
+//         >
+//           {/* Drag handle */}
+//           <View style={styles.dragHandle} />
+
+//           {/* Booking ID */}
+//           <Text style={styles.bookingIdText}>
+//             Booking ID: {ride?.booking_id ?? '—'}  {/* ✅ ride.booking_id */}
+//           </Text>
+
+//           {/* ETA row */}
+//           <View style={styles.etaRow}>
+//             <View style={styles.etaPill}>
+//               <Text style={styles.etaPillValue}>{routeInfo.duration}</Text>
+//               <Text style={styles.etaPillLabel}>ETA</Text>
+//             </View>
+//             <View style={styles.etaPill}>
+//               <Text style={styles.etaPillValue}>{routeInfo.distance}</Text>
+//               <Text style={styles.etaPillLabel}>Distance</Text>
+//             </View>
+//             <View style={styles.etaPill}>
+//               {/* ✅ booking_status_name from ride */}
+//               <Text style={styles.etaPillValue}>{ride?.booking_status_name ?? '—'}</Text>
+//               <Text style={styles.etaPillLabel}>Status</Text>
+//             </View>
+//           </View>
+
+//           {/* Navigate to Drop + Cancel */}
+//           <View style={styles.topButtonRow}>
+//             <TouchableOpacity style={[styles.topBtn, styles.navigateBtn]} onPress={handleNavigate}>
+//               <MaterialCommunityIcons name="navigation" size={15} color="#fff" />
+//               <Text style={styles.topBtnText}>Navigate to Drop</Text>
+//             </TouchableOpacity>
+//             <TouchableOpacity style={[styles.topBtn, styles.cancelTopBtn]} onPress={handleCancel}>
+//               <Text style={styles.topBtnText}>Cancel</Text>
+//             </TouchableOpacity>
+//           </View>
+
+//           <View style={styles.divider} />
+
+//           {/* Customer row */}
+//           <View style={styles.customerRow}>
+//             <View style={styles.customerAvatar}>
+//               <MaterialCommunityIcons name="account" size={22} color="#E59332" />
+//             </View>
+//             <View style={{ flex: 1 }}>
+//               {/* ✅ driver_name from ride */}
+//               <Text style={styles.customerName}>{ride?.driver_name ?? '—'}</Text>
+//               {/* ✅ mobile_no from ride */}
+//               <Text style={styles.customerPhone}>{ride?.mobile_no ?? '—'}</Text>
+//             </View>
+//             <TouchableOpacity style={styles.circleBtn} onPress={handleChat}>
+//               <MaterialCommunityIcons name="chat" size={17} color="#fff" />
+//             </TouchableOpacity>
+//             <TouchableOpacity style={[styles.circleBtn, { marginLeft: 8 }]} onPress={handleCall}>
+//               <MaterialCommunityIcons name="phone" size={17} color="#fff" />
+//             </TouchableOpacity>
+//           </View>
+
+//           <View style={styles.divider} />
+
+//           {/* Pickup */}
+//           <View style={styles.addressRow}>
+//             <View style={styles.dotPickup} />
+//             <View style={{ flex: 1 }}>
+//               <Text style={styles.addressLabel}>PICKUP LOCATION</Text>
+//               {/* ✅ picup_location from ride */}
+//               <Text style={styles.addressText}>{ride?.picup_location ?? '—'}</Text>
+//             </View>
+//           </View>
+
+//           <View style={styles.connectorLine} />
+
+//           {/* Drop */}
+//           <View style={styles.addressRow}>
+//             <View style={styles.dotDrop} />
+//             <View style={{ flex: 1 }}>
+//               <Text style={[styles.addressLabel, { color: '#ef4444' }]}>DROP LOCATION</Text>
+//               {/* ✅ drop_location from ride */}
+//               <Text style={styles.addressText}>{ride?.drop_location ?? '—'}</Text>
+//             </View>
+//           </View>
+
+//           <View style={styles.divider} />
+
+//           {/* Date + Time + Fare */}
+//           <View style={styles.metaRow}>
+//             <View style={styles.metaItem}>
+//               <Text style={styles.metaLabel}>Date</Text>
+//               {/* ✅ booking_date from ride */}
+//               <Text style={styles.metaValue}>{ride?.booking_date ?? '—'}</Text>
+//             </View>
+//             <View style={styles.metaDivider} />
+//             <View style={styles.metaItem}>
+//               <Text style={styles.metaLabel}>Time</Text>
+//               {/* ✅ booking_time from ride */}
+//               <Text style={styles.metaValue}>{ride?.booking_time ?? '—'}</Text>
+//             </View>
+//             <View style={styles.metaDivider} />
+//             <View style={[styles.metaItem, { alignItems: 'flex-end' }]}>
+//               <Text style={styles.metaLabel}>Fare</Text>
+//               {/* ✅ fare from ride */}
+//               <Text style={styles.fareValue}>₦{ride?.fare ?? '0'}</Text>
+//             </View>
+//           </View>
+
+//           {/* Complete Ride button */}
+//           <TouchableOpacity
+//             style={[styles.completeRideBtn, completing && styles.disabledBtn]}
+//             onPress={handleCompleteRide}
+//             disabled={completing}
+//           >
+//             {completing ? (
+//               <ActivityIndicator size="small" color="#fff" />
+//             ) : (
+//               <>
+//                 <MaterialCommunityIcons name="flag-checkered" size={18} color="#fff" />
+//                 <Text style={styles.completeRideBtnText}>Complete Ride</Text>
+//               </>
+//             )}
+//           </TouchableOpacity>
+
+//         </Animated.View>
+//       </View>
+//     </SafeAreaView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   safeArea:            { flex: 1, backgroundColor: '#0B0B0B' },
+//   header:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2C2C2C', backgroundColor: C.bg, zIndex: 10 },
+//   iconBtn:             { width: 36, height: 36, borderRadius: 10, backgroundColor: '#0E0E0E', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2C2C2C' },
+//   headerTitle:         { color: '#FFFFFF', fontWeight: '700', fontSize: 16, letterSpacing: 0.3 },
+//   container:           { flex: 1 },
+//   loadingContainer:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0B0B0B' },
+//   loadingText:         { marginTop: 12, fontSize: 16, color: '#888' },
+//   map:                 { flex: 1 },
+
+//   // Markers
+//   driverMarker:        { width: 42, height: 42, borderRadius: 21, backgroundColor: '#E59332', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff', elevation: 5 },
+//   markerWrap:          { alignItems: 'center' },
+//   markerBubble:        { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 2 },
+//   markerBubbleText:    { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+//   // FABs
+//   recenterFab:         { position: 'absolute', right: 16, bottom: 16, width: 48, height: 48, borderRadius: 24, backgroundColor: '#1C1C1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#333', elevation: 6 },
+//   speedBadge:          { position: 'absolute', left: 16, bottom: 16, backgroundColor: '#1C1C1E', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: '#333', elevation: 6 },
+//   speedValue:          { fontSize: 18, fontWeight: '800', color: '#fff' },
+//   speedUnit:           { fontSize: 10, color: '#888', fontWeight: '500' },
+
+//   // Success banner
+//   successBannerTop:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#0D2B1A', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#14532d' },
+//   successBannerTopText: { fontSize: 14, fontWeight: '700', color: '#22c55e' },
+
+//   // Card
+//   card:                { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#121212', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8, borderTopWidth: 1, borderColor: '#2C2C2C', elevation: 8 },
+//   dragHandle:          { width: 40, height: 4, borderRadius: 2, backgroundColor: '#444', alignSelf: 'center', marginBottom: 12 },
+//   bookingIdText:       { fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 8 },
+
+//   // ETA row
+//   etaRow:              { flexDirection: 'row', gap: 8, marginBottom: 12 },
+//   etaPill:             { flex: 1, backgroundColor: '#1E1E1E', borderRadius: 8, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: '#2C2C2C' },
+//   etaPillValue:        { fontSize: 13, fontWeight: '800', color: '#E59332' },
+//   etaPillLabel:        { fontSize: 9, color: '#888', fontWeight: '500', marginTop: 2 },
+
+//   topButtonRow:        { flexDirection: 'row', gap: 10, marginBottom: 12 },
+//   topBtn:              { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5 },
+//   navigateBtn:         { backgroundColor: '#1F87FE' },
+//   cancelTopBtn:        { backgroundColor: '#2C2C2C', borderWidth: 1, borderColor: '#3C3C3C' },
+//   topBtnText:          { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+//   divider:             { height: 1, backgroundColor: '#2C2C2C', marginBottom: 12 },
+
+//   customerRow:         { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+//   customerAvatar:      { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#333' },
+//   customerName:        { fontSize: 14, fontWeight: '700', color: '#fff' },
+//   customerPhone:       { fontSize: 11, color: '#888', marginTop: 2 },
+//   circleBtn:           { width: 38, height: 38, borderRadius: 19, backgroundColor: '#E59332', justifyContent: 'center', alignItems: 'center' },
+
+//   addressRow:          { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
+//   dotPickup:           { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF8C00', marginTop: 13 },
+//   dotDrop:             { width: 10, height: 10, borderRadius: 5, backgroundColor: '#ef4444', marginTop: 13 },
+//   connectorLine:       { width: 1, height: 10, backgroundColor: '#444', marginLeft: 4, marginBottom: 4 },
+//   addressLabel:        { fontSize: 10, fontWeight: '700', color: '#E59332', letterSpacing: 0.8, marginBottom: 2 },
+//   addressText:         { fontSize: 12, color: '#ccc', lineHeight: 18 },
+
+//   metaRow:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+//   metaItem:            { flex: 1 },
+//   metaDivider:         { width: 1, height: 28, backgroundColor: '#2C2C2C' },
+//   metaLabel:           { fontSize: 11, color: '#888' },
+//   metaValue:           { fontSize: 13, fontWeight: '700', color: '#fff' },
+//   fareValue:           { fontSize: 16, fontWeight: '800', color: '#E59332' },
+
+//   completeRideBtn:     { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+//   completeRideBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+//   disabledBtn:         { opacity: 0.6 },
+// });

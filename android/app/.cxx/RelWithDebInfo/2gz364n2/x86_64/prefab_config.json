@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "prefabPath": "/home/maxsys/.gradle/caches/modules-2/files-2.1/com.google.prefab/cli/2.1.0/aa32fec809c44fa531f01dcfb739b5b3304d3050/cli-2.1.0-all.jar",
+  "packages": [
+    "/home/maxsys/.gradle/caches/9.3.1/transforms/ea2e91e762512bc41f83da64b71e87b2/transformed/react-android-0.85.3-release/prefab",
+    "/home/maxsys/.gradle/caches/9.3.1/transforms/d4d3510eec4a086dc7bfd745f62ae404/transformed/hermes-android-250829098.0.10-release/prefab",
+    "/home/maxsys/.gradle/caches/9.3.1/transforms/d6d633a9edf24ef67434af76f13f05f7/transformed/fbjni-0.7.0/prefab"
+  ]
+}

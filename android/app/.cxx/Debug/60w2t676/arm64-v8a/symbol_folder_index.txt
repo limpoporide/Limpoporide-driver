@@ -1,0 +1,1 @@
+/home/maxsys/Pictures/limpopo-driver/android/app/build/intermediates/cxx/Debug/60w2t676/obj/arm64-v8a
